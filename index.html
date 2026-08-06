@@ -1403,7 +1403,7 @@
           <h4>Dapatkan Promo</h4>
           <p>Masukkan email untuk menerima promo dan menu terbaru.</p>
           <form class="newsletter" id="newsletterForm">
-            <input type="email" id="emailInput" placeholder="Email Anda" required>
+            <input type="email" id="emailInput" name="email" placeholder="Email Anda" required>
             <button type="submit">Kirim</button>
           </form>
         </div>
@@ -1741,16 +1741,63 @@
         return;
       }
 
-      alert(
-        "Demo checkout berhasil dibuka!\\n\\nPada versi produksi, tombol ini dapat dihubungkan ke WhatsApp, payment gateway, atau halaman checkout."
-      );
-    });
+      // 1. Nomor WhatsApp tujuan (Pastikan menggunakan kode negara 62, tanpa angka 0 di depan atau tanda +)
+      const nomorWA = "628561123040"; // Ganti dengan nomor WhatsApp tokomu
 
-    document.getElementById("newsletterForm").addEventListener("submit", event => {
-      event.preventDefault();
+      // 2. Siapkan format teks pembuka
+      let teksPesanan = "Halo *Rasa Nusantara*, saya ingin memesan menu berikut:\n\n";
+
+      // 3. Looping (ambil) semua data makanan yang ada di dalam keranjang
+      let totalSemua = 0;
+      cart.forEach((item, index) => {
+        const subTotal = item.price * item.quantity;
+        totalSemua += subTotal;
+        teksPesanan += `${index + 1}. ${item.name} (${item.quantity} porsi) - ${rupiah(subTotal)}\n`;
+      });
+
+      // 4. Tambahkan total tagihan dan kalimat penutup
+      teksPesanan += `\n*Total Tagihan: ${rupiah(totalSemua)}*\n\n`;
+      teksPesanan += "Mohon konfirmasi pesanan dan informasi ongkos kirimnya ya. Terima kasih!";
+
+      // 5. Ubah teks menjadi format yang bisa dibaca oleh link URL (URL Encoding)
+      const teksEncoded = encodeURIComponent(teksPesanan);
+
+      // 6. Buat link WhatsApp dan buka di tab baru
+      const linkWA = `https://wa.me/${nomorWA}?text=${teksEncoded}`;
+      window.open(linkWA, "_blank");
+    });
+    document.getElementById("newsletterForm").addEventListener("submit", async event => {
+      event.preventDefault(); // Mencegah halaman reload
+      
       const email = document.getElementById("emailInput").value.trim();
-      showToast(`Promo akan dikirim ke ${email}`);
-      event.target.reset();
+      const form = event.target;
+      
+      // Tampilkan tulisan loading sementara
+      showToast("Sedang mengirim...");
+
+      try {
+        // Mengirim data diam-diam ke Formspree
+        const response = await fetch("LINK_FORMSPREE_KAMU_DISINI", {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ email: email })
+        });
+
+        // Jika berhasil terkirim
+        if (response.ok) {
+          showToast(`Berhasil! Promo akan dikirim ke ${email}`);
+          form.reset(); // Kosongkan kolom input
+        } else {
+          // Jika gagal (misal email tidak valid menurut server)
+          showToast("Gagal mengirim. Silakan coba lagi.");
+        }
+      } catch (error) {
+        // Jika internet terputus atau error lainnya
+        showToast("Terjadi kesalahan jaringan.");
+      }
     });
 
     renderProducts();
@@ -1758,35 +1805,3 @@
   </script>
 </body>
 </html>
-'''
-
-out_dir = Path("/mnt/data/rasa_nusantara_website")
-out_dir.mkdir(parents=True, exist_ok=True)
-index_path = out_dir / "index.html"
-index_path.write_text(html, encoding="utf-8")
-
-readme = """RASA NUSANTARA - WEBSITE PENJUALAN MAKANAN
-
-Cara menjalankan:
-1. Ekstrak file ZIP.
-2. Buka file index.html menggunakan browser.
-3. Untuk mengedit, buka index.html di VS Code.
-
-Fitur:
-- Responsive desktop, tablet, dan mobile
-- Filter kategori
-- Pencarian produk
-- Keranjang belanja
-- Tambah/kurangi jumlah produk
-- Penyimpanan keranjang menggunakan localStorage
-- Demo checkout
-"""
-(out_dir / "README.txt").write_text(readme, encoding="utf-8")
-
-zip_path = Path("/mnt/data/rasa_nusantara_website.zip")
-with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-    z.write(index_path, arcname="rasa_nusantara_website/index.html")
-    z.write(out_dir / "README.txt", arcname="rasa_nusantara_website/README.txt")
-
-print(f"Created: {index_path}")
-print(f"Created: {zip_path}")
